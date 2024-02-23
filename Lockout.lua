@@ -21,18 +21,7 @@ interruptIndicator:SetColorTexture(0.5, 0, 0.5, 1) -- Purple color
 interruptIndicator:SetSize(2, 20)
 
 local druidIcon = frame:CreateTexture(nil, "OVERLAY")
-local _, classFilename = UnitClass("player")
-if classFilename == "DRUID" then
-    local _, _, _, _, _, _, classID = GetSpecializationInfo(GetSpecialization())
-    if classID == 11 then -- Druid class ID
-        local _, _, _, icon = GetSpecializationInfoForClassID(11, 102) -- Balance specialization ID
-        druidIcon:SetTexture(icon)
-    else
-        druidIcon:SetTexture("Interface\\Icons\\Achievement_GuildPerk_EverybodysFriend")
-    end
-else
-    druidIcon:SetTexture("Interface\\Icons\\Achievement_GuildPerk_EverybodysFriend")
-end
+druidIcon:SetTexture("Interface\\Icons\\Ability_Druid_Eclipse")
 druidIcon:SetSize(20, 20) -- Adjust size as needed
 druidIcon:SetPoint("LEFT", interruptIndicator, "CENTER", 0, 0) -- Position the icon relative to the interruptIndicator
 
@@ -62,11 +51,9 @@ local function StartCast()
     UpdateCastBar()
 end
 
-local function StopCast(interruptedByEnemy)
-    if interruptedByEnemy then
-        interruptPercent = lastCastPercent
-        UpdateCastBar() -- Update the cast bar when interrupted by an enemy
-    end
+local function StopCast()
+    interruptPercent = lastCastPercent
+    UpdateCastBar()
 end
 
 local function OnEvent(self, event, unit, spell, rank, lineID, spellID)
@@ -74,19 +61,7 @@ local function OnEvent(self, event, unit, spell, rank, lineID, spellID)
         if event == "UNIT_SPELLCAST_START" then
             StartCast()
         elseif event == "UNIT_SPELLCAST_SUCCEEDED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
-            -- Check if the interruption was caused by an enemy
-            local interruptedByEnemy = false
-            if event == "UNIT_SPELLCAST_INTERRUPTED" then
-                local target = UnitChannelInfo("player") or UnitCastingInfo("player")
-                if target and UnitCanAttack("player", target) then
-                    interruptedByEnemy = true
-                end
-            end
-            StopCast(interruptedByEnemy)
-        elseif event == "UNIT_SPELLCAST_INTERRUPTIBLE" then
-            -- Interrupted by an enemy
-            -- Call StopCast to update the cast bar
-            StopCast(true)
+            StopCast()
         end
     end
 end
@@ -95,5 +70,4 @@ local frame = CreateFrame("Frame")
 frame:RegisterEvent("UNIT_SPELLCAST_START")
 frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
-frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTIBLE")
 frame:SetScript("OnEvent", OnEvent)
