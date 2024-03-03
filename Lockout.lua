@@ -38,7 +38,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
         if subEvent == "SPELL_INTERRUPT" and destGUID == UnitGUID("player") then
             combatLogEventTime = GetTime()
             -- Set the texture to the interrupt spell icon
-            iconTexture:SetTexture(GetSpellTexture(extraSpellID))
+            --iconTexture:SetTexture(GetSpellTexture(extraSpellID))
         end
     end
 
