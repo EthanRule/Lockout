@@ -1,73 +1,69 @@
-local frame = CreateFrame("Frame", "MyCastBar", UIParent)
-frame:SetSize(200, 20)
-frame:SetPoint("CENTER", 0, 0)
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
-local bg = frame:CreateTexture(nil, "BACKGROUND")
-bg:SetAllPoints(frame)
-bg:SetColorTexture(0, 0, 0, 0.5)
+local spellInterruptedTime, combatLogEventTime, interruptedUnit, interruptedStartTime, interruptedEndTime
 
-local lastCastBar = frame:CreateTexture(nil, "ARTWORK")
-lastCastBar:SetColorTexture(0, 1, 0, 0.8)
-lastCastBar:SetPoint("LEFT", frame, "LEFT")
-lastCastBar:SetHeight(20)
-
-local currentCastBar = frame:CreateTexture(nil, "ARTWORK")
-currentCastBar:SetColorTexture(1, 0, 0, 0.8)
-currentCastBar:SetPoint("LEFT", lastCastBar, "RIGHT")
-currentCastBar:SetHeight(20)
-
-local interruptIndicator = frame:CreateTexture(nil, "OVERLAY")
-interruptIndicator:SetColorTexture(0.5, 0, 0.5, 1) -- Purple color
-interruptIndicator:SetSize(2, 20)
-
-local druidIcon = frame:CreateTexture(nil, "OVERLAY")
-druidIcon:SetTexture("Interface\\Icons\\Ability_Druid_Eclipse")
-druidIcon:SetSize(20, 20) -- Adjust size as needed
-druidIcon:SetPoint("LEFT", interruptIndicator, "CENTER", 0, 0) -- Position the icon relative to the interruptIndicator
-
-local castStartTime = 0
-local lastCastPercent = 0
-local interruptPercent = 0
-local maxCastTime = 1.7
-
-local function UpdateCastBar()
-    local castEndTime = GetTime()
-    local castDuration = castEndTime - castStartTime
-    lastCastPercent = castDuration / maxCastTime
-    lastCastBar:SetWidth(frame:GetWidth() * lastCastPercent)
-    currentCastBar:SetWidth(frame:GetWidth() * (1 - lastCastPercent))
-    interruptIndicator:SetPoint("LEFT", frame, "LEFT", frame:GetWidth() * interruptPercent, 0)
-    druidIcon:SetPoint("LEFT", interruptIndicator, "CENTER", 0, 0) -- Update icon position with the interruptIndicator
-end
-
-local function StartCast()
-    local baseCastTime = 1.7 -- all spammable cc is 2 seconds. Chaosbolt?
-    print("Base cast time" .. baseCastTime)
-    local hastePercentage = UnitSpellHaste("player") / 100
-    local adjustedCastTime = baseCastTime / (1 + hastePercentage)
-    print("Adjusted cast time" .. adjustedCastTime)
-    castStartTime = GetTime()
-    maxCastTime = adjustedCastTime
-    UpdateCastBar()
-end
-
-local function StopCast()
-    interruptPercent = lastCastPercent
-    UpdateCastBar()
-end
-
-local function OnEvent(self, event, unit, spell, rank, lineID, spellID)
-    if unit == "player" then
-        if event == "UNIT_SPELLCAST_START" then
-            StartCast()
-        elseif event == "UNIT_SPELLCAST_SUCCEEDED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
-            StopCast()
+frame:SetScript("OnEvent", function(self, event, ...)
+    if event == "UNIT_SPELLCAST_INTERRUPTED" then
+        local unit = ...
+        if unit == "player" then
+            spellInterruptedTime = GetTime()
+            interruptedUnit = unit
+            local name, _, _, startTime, endTime = UnitCastingInfo(unit)
+            if name then
+                interruptedStartTime = startTime / 1000
+                interruptedEndTime = endTime / 1000
+            end
+        end
+    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        local _, subEvent, _, _, _, _, _, destGUID = CombatLogGetCurrentEventInfo()
+        if subEvent == "SPELL_INTERRUPT" and destGUID == UnitGUID("player") then
+            combatLogEventTime = GetTime()
         end
     end
-end
 
-local frame = CreateFrame("Frame")
-frame:RegisterEvent("UNIT_SPELLCAST_START")
-frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
-frame:SetScript("OnEvent", OnEvent)
+    if spellInterruptedTime and combatLogEventTime and math.abs(spellInterruptedTime - combatLogEventTime) < 0.01 then
+        print("UNIT_SPELLCAST_INTERRUPTED and COMBAT_LOG_EVENT_UNFILTERED happened at the same time")
+        -- Reset the times
+        if interruptedUnit and interruptedStartTime and interruptedEndTime then
+            local castTime = interruptedEndTime - interruptedStartTime
+            local interruptedAt = spellInterruptedTime - interruptedStartTime
+            local percentage = (interruptedAt / castTime) * 100
+            print("You were interrupted at " .. percentage .. "% of your cast.")
+        end
+        spellInterruptedTime = nil
+        combatLogEventTime = nil
+        interruptedUnit = nil
+        interruptedStartTime = nil
+        interruptedEndTime = nil
+    end
+end)
+
+local castbarFrame = CreateFrame("Frame")
+castbarFrame:RegisterEvent("PLAYER_LOGIN")
+
+castbarFrame:SetScript("OnEvent", function(self, event, ...)
+    if event == "PLAYER_LOGIN" then
+        -- Access the player's casting bar
+        local castingBar = PlayerFrame.CastingBar
+
+        -- Change the size of the cast bar
+        castingBar:SetSize(300, 30)
+
+        -- Change the position of the cast bar
+        castingBar:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+
+        -- Change the texture of the cast bar
+        castingBar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
+
+        -- Change the color of the cast bar
+        castingBar:SetStatusBarColor(0, 0.65, 1)
+
+        -- Change the font of the cast bar's text
+        castingBar.Text:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
+    end
+end)
+
+-- have a gradient of where somebody kicked last
+-- --------------- . o O o . --
