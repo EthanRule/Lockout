@@ -28,6 +28,10 @@
         "TALENT_MICRO_BUTTON_NO_SPEC",
         "RED_FONT_COLOR",
         "GREEN_FONT_COLOR",
-        "PlayerFrame"
+        "PlayerFrame",
+        "TargetFrameSpellBar",
+        "FocusFrameSpellBar",
+        "PlayerCastingBarFrame",
+        "LOSS_OF_CONTROL_DISPLAY_INTERRUPT_SCHOOL"
     ]
 }

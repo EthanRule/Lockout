@@ -1,3 +1,20 @@
+-- Create a frame to display the text
+local textFrame = CreateFrame("Frame", nil, UIParent)
+textFrame:SetSize(200, 100) -- Adjust size as needed
+textFrame:SetPoint("CENTER", 0, -315) -- Move the frame 100 pixels down from the center of the screen
+-- Create a FontString to display the text
+local text = textFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+text:SetAllPoints(textFrame)
+
+-- Create a frame to display the interrupt icon
+local iconFrame = CreateFrame("Frame", nil, textFrame)
+iconFrame:SetSize(20, 20) -- Adjust size as needed
+iconFrame:SetPoint("LEFT", textFrame, "RIGHT", 10, 0) -- Position the icon to the right of the text frame
+
+-- Set the texture of the interrupt icon
+local iconTexture = iconFrame:CreateTexture(nil, "OVERLAY")
+iconTexture:SetAllPoints(iconFrame)
+
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
 frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
@@ -17,20 +34,22 @@ frame:SetScript("OnEvent", function(self, event, ...)
             end
         end
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        local _, subEvent, _, _, _, _, _, destGUID = CombatLogGetCurrentEventInfo()
+        local _, subEvent, _, _, _, _, _, destGUID, _, _, _, _, _, _, _, extraSpellID = CombatLogGetCurrentEventInfo()
         if subEvent == "SPELL_INTERRUPT" and destGUID == UnitGUID("player") then
             combatLogEventTime = GetTime()
+            -- Set the texture to the interrupt spell icon
+            iconTexture:SetTexture(GetSpellTexture(extraSpellID))
         end
     end
 
     if spellInterruptedTime and combatLogEventTime and math.abs(spellInterruptedTime - combatLogEventTime) < 0.01 then
-        print("UNIT_SPELLCAST_INTERRUPTED and COMBAT_LOG_EVENT_UNFILTERED happened at the same time")
         -- Reset the times
         if interruptedUnit and interruptedStartTime and interruptedEndTime then
             local castTime = interruptedEndTime - interruptedStartTime
             local interruptedAt = spellInterruptedTime - interruptedStartTime
             local percentage = (interruptedAt / castTime) * 100
-            print("You were interrupted at " .. percentage .. "% of your cast.")
+            -- Display the percentage on the screen
+            text:SetText(string.format("%.2f", percentage) .. "%")
         end
         spellInterruptedTime = nil
         combatLogEventTime = nil
@@ -39,32 +58,3 @@ frame:SetScript("OnEvent", function(self, event, ...)
         interruptedEndTime = nil
     end
 end)
-
-local castbarFrame = CreateFrame("Frame")
-castbarFrame:RegisterEvent("PLAYER_LOGIN")
-
-castbarFrame:SetScript("OnEvent", function(self, event, ...)
-    if event == "PLAYER_LOGIN" then
-        -- Access the player's casting bar
-        local castingBar = PlayerFrame.CastingBar
-
-        -- Change the size of the cast bar
-        castingBar:SetSize(300, 30)
-
-        -- Change the position of the cast bar
-        castingBar:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-
-        -- Change the texture of the cast bar
-        castingBar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
-
-        -- Change the color of the cast bar
-        castingBar:SetStatusBarColor(0, 0.65, 1)
-
-        -- Change the font of the cast bar's text
-        castingBar.Text:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
-    end
-end)
-
--- have a gradient of where somebody kicked last
--- --------------- . o O o . --
--- place aframe over the castbar for this
