@@ -67,3 +67,4 @@ end)
 
 -- have a gradient of where somebody kicked last
 -- --------------- . o O o . --
+-- place aframe over the castbar for this
