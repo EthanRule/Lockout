@@ -33,7 +33,7 @@ interruptMark:SetAlpha(0.5)
 -- idk what this is used for lol
 local textFrame = CreateFrame("Frame", nil, UIParent)
 textFrame:SetSize(200, 100)
-textFrame:SetPoint("CENTER", 0, -315)
+textFrame:SetPoint("CENTER", 0, -314)
 local text = textFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 text:SetAllPoints(textFrame)
 
@@ -108,7 +108,7 @@ local function updateCustomCastBar()
         endTime = endTime / 1000
 
         -- Add a small offset to the time to compensate for frame lag
-        local timeOffset = 0.02  -- Adjust this value as needed
+        local timeOffset = 0.01  -- Adjust this value as needed
         customCastBar:SetMinMaxValues(0, endTime - startTime)
         customCastBar:SetValue((GetTime() + timeOffset) - startTime)
     else
