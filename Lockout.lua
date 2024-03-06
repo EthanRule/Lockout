@@ -1,26 +1,106 @@
+local Lockout = LibStub("AceAddon-3.0"):NewAddon("Lockout", "AceConsole-3.0", "AceEvent-3.0", "AceSerializer-3.0")
+local AC = LibStub("AceConfig-3.0")
+local ACD = LibStub("AceConfigDialog-3.0")
+local ACR = LibStub("AceConfigRegistry-3.0")
+local AceGUI = LibStub("AceGUI-3.0")
 local LSM = LibStub("LibSharedMedia-3.0")
 
-local LSM = LibStub("LibSharedMedia-3.0")
+-- UI and database
+local defaults = {
+	profile = {
+		message = "Welcome Home!",
+		castBarShow = true,
+		comps = {},
+	},
+}
+
+local options = {
+	name = "Lockout",
+	handler = Lockout,
+	type = "group",
+	args = {
+		castBarShow = {
+			name = "Show Cast Bar",
+			desc = "Enables / disables the cast bar",
+			type = "toggle",
+			set = "SetPopUp",
+			get = "GetPopUp",
+			order = 1,
+		},
+	},
+}
 
 -- Create a custom casting bar
-local customCastBar = CreateFrame("StatusBar", nil, UIParent)
-customCastBar:SetSize(206, 7)
-customCastBar:SetPoint("CENTER", 0, -326)
-customCastBar:SetFrameStrata("TOOLTIP")
-customCastBar:SetFrameLevel(100)
-customCastBar:SetMinMaxValues(0, 1)
-local background = customCastBar:CreateTexture(nil, "BACKGROUND")
-background:SetTexture("Interface\\ChatFrame\\ChatFrameBackground")
-background:SetAllPoints(customCastBar)
-background:SetVertexColor(0, 0, 0, 0.25)
-customCastBar:Show()
+Lockout.customCastBar = CreateFrame("StatusBar", nil, UIParent)
+Lockout.customCastBar:SetSize(206, 7)
+Lockout.customCastBar:SetPoint("CENTER", 0, -326)
+Lockout.customCastBar:SetFrameStrata("TOOLTIP")
+Lockout.customCastBar:SetFrameLevel(100)
+Lockout.customCastBar:SetMinMaxValues(0, 1)
+Lockout.background = Lockout.customCastBar:CreateTexture(nil, "BACKGROUND")
+Lockout.background:SetTexture("Interface\\ChatFrame\\ChatFrameBackground")
+Lockout.background:SetAllPoints(Lockout.customCastBar)
+Lockout.background:SetVertexColor(0, 0, 0, 0.25)
+Lockout.customCastBar:Show()
 local texture = LSM:Fetch("statusbar", "Interface\\TargetingFrame\\UI-StatusBar")
 if texture then
-    customCastBar:SetStatusBarTexture(texture)
-    customCastBar:SetStatusBarColor(0.8, 0.5, 1)  -- Set the color to purple
+    Lockout.customCastBar:SetStatusBarTexture(texture)
+    Lockout.customCastBar:SetStatusBarColor(0.8, 0.5, 1)  -- Set the color to purple
 else
     print("Texture not found")
 end
+
+Lockout.db = LibStub("AceDB-3.0"):New("LockoutDB", defaults, true)
+local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(Lockout.db)
+
+
+function Lockout:SlashCommand()
+    InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
+end
+
+function Lockout:OnInitialize()
+    AC:RegisterOptionsTable("Lockout", options)
+    self.optionsFrame = ACD:AddToBlizOptions("Lockout", "Lockout")
+end
+
+function Lockout:GetPopUp()
+    return self.db.profile.castBarShow
+end
+
+function Lockout:SetPopUp(value)
+    self.db.profile.castBarShow = value
+
+    -- Show or hide customCastBar depending on the value of the popUp option
+    if value then
+        self.customCastBar:Show()
+    else
+        self.customCastBar:Hide()
+    end
+    ACR:NotifyChange("Lockout")
+end
+
+function Lockout:OnInitialize()
+    AC:RegisterOptionsTable("Lockout", options)
+    self.optionsFrame = ACD:AddToBlizOptions("Lockout", "Lockout")
+
+    -- Show or hide customCastBar depending on the initial value of the popUp option
+    if self.db.profile.castBarShow then
+        self.customCastBar:Show()
+    else
+        self.customCastBar:Hide()
+    end
+end
+
+-- Register the slash command
+SLASH_LOCKOUT1 = "/lockout"
+
+-- Define the function to be called when the slash command is used
+SlashCmdList["LOCKOUT"] = function(msg)
+    Lockout:SlashCommand()
+end
+
+
+
 
 
 -- Create interrupt Mark
@@ -53,7 +133,7 @@ end)
 
 -- Initially hide the background and interruptMark if not in combat
 if not InCombatLockdown() then
-    background:Hide()
+    Lockout.background:Hide()
     interruptMark:Hide()
 end
 
@@ -89,7 +169,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             local interruptedAt = spellInterruptedTime - interruptedStartTime
             local percentage = (interruptedAt / castTime) * 100
             text:SetText(string.format("%.2f", percentage) .. "%")
-            interruptMark:SetPoint("LEFT", customCastBar, "LEFT", customCastBar:GetWidth() * (interruptedAt / castTime), 0)
+            interruptMark:SetPoint("LEFT", customCastBar, "LEFT", Lockout.customCastBar:GetWidth() * (interruptedAt / castTime), 0)
             interruptMark:Show()
         end
         spellInterruptedTime = nil
@@ -109,10 +189,10 @@ local function updateCustomCastBar()
 
         -- Add a small offset to the time to compensate for frame lag
         local timeOffset = 0.01  -- Adjust this value as needed
-        customCastBar:SetMinMaxValues(0, endTime - startTime)
-        customCastBar:SetValue((GetTime() + timeOffset) - startTime)
+        Lockout.customCastBar:SetMinMaxValues(0, endTime - startTime)
+        Lockout.customCastBar:SetValue((GetTime() + timeOffset) - startTime)
     else
-        customCastBar:SetValue(0)
+        Lockout.customCastBar:SetValue(0)
     end
 end
 
@@ -125,7 +205,7 @@ castFrameEvents:SetScript("OnEvent", function(self, event, ...)
 end)
 
 -- Update the custom casting bar every frame
-customCastBar:SetScript("OnUpdate", updateCustomCastBar)
+Lockout.customCastBar:SetScript("OnUpdate", updateCustomCastBar)
 
 -- -- interrupt icon code --
 -- local iconFrame = CreateFrame("Frame", nil, textFrame)
@@ -144,3 +224,6 @@ customCastBar:SetScript("OnUpdate", updateCustomCastBar)
 -- -- Set the texture of the interrupt icon
 -- local iconTexture = iconFrame:CreateTexture(nil, "OVERLAY")
 -- iconTexture:SetAllPoints(iconFrame)
+
+-- GUI and Settings
+
