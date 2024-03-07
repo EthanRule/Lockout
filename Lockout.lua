@@ -9,25 +9,65 @@ local LSM = LibStub("LibSharedMedia-3.0")
 local defaults = {
 	profile = {
 		message = "Welcome Home!",
-		castBarShow = true,
+		castBar = true,
+        castBarX = 0,
+        castBarY = -326,
 		comps = {},
 	},
 }
 
 local options = {
-	name = "Lockout",
-	handler = Lockout,
-	type = "group",
-	args = {
-		castBarShow = {
-			name = "Show Cast Bar",
-			desc = "Enables / disables the cast bar",
-			type = "toggle",
-			set = "SetPopUp",
-			get = "GetPopUp",
-			order = 1,
-		},
-	},
+    name = "Lockout",
+    handler = Lockout,
+    type = "group",
+    args = {
+        castBar = {
+            name = "Show Cast Bar",
+            desc = "Enables / disables the Cast Bar",
+            type = "toggle",
+            set = "SetCastBar",
+            get = "GetCastBar",
+            order = 1,
+        },
+        castBarX = {
+            name = "Cast Bar X",
+            desc = "Set the X coordinate of the Cast Bar",
+            type = "input",
+            set = "SetCastBarX",
+            get = "GetCastBarX",
+            order = 2,
+        },
+        castBarY = {
+            name = "Cast Bar Y",
+            desc = "Set the Y coordinate of the Cast Bar",
+            type = "input",
+            set = "SetCastBarY",
+            get = "GetCastBarY",
+            order = 3,
+        },
+        castBarColor = {
+            name = "Cast Bar Color",
+            desc = "Set the color of the Cast Bar",
+            type = "color",
+            set = "SetCastBarColor",
+            get = "GetCastBarColor",
+            order = 4,
+        },
+        -- import = {
+        --     name = "Import",
+        --     desc = "Import a profile",
+        --     type = "execute",
+        --     func = "ImportProfile",
+        --     order = 7,
+        -- },
+        -- export = {
+        --     name = "Export",
+        --     desc = "Export a profile",
+        --     type = "execute",
+        --     func = "ExportProfile",
+        --     order = 8,
+        -- }
+    },
 }
 
 -- Create a custom casting bar
@@ -50,99 +90,120 @@ else
     print("Texture not found")
 end
 
-Lockout.db = LibStub("AceDB-3.0"):New("LockoutDB", defaults, true)
-local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(Lockout.db)
-
-
 function Lockout:SlashCommand()
     InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
 end
 
-function Lockout:OnInitialize()
-    AC:RegisterOptionsTable("Lockout", options)
-    self.optionsFrame = ACD:AddToBlizOptions("Lockout", "Lockout")
-end
-
-function Lockout:GetPopUp()
-    return self.db.profile.castBarShow
-end
-
-function Lockout:SetPopUp(value)
-    self.db.profile.castBarShow = value
-
-    -- Show or hide customCastBar depending on the value of the popUp option
-    if value then
-        self.customCastBar:Show()
-    else
-        self.customCastBar:Hide()
-    end
-    ACR:NotifyChange("Lockout")
-end
-
-function Lockout:OnInitialize()
-    AC:RegisterOptionsTable("Lockout", options)
-    self.optionsFrame = ACD:AddToBlizOptions("Lockout", "Lockout")
-
-    -- Show or hide customCastBar depending on the initial value of the popUp option
-    if self.db.profile.castBarShow then
+function Lockout:SetCastBar(info)
+	local pop = self.db.profile.castBar
+	self.db.profile.castBar = not pop
+    if self.db.profile.castBar then
         self.customCastBar:Show()
     else
         self.customCastBar:Hide()
     end
 end
 
--- Register the slash command
-SLASH_LOCKOUT1 = "/lockout"
-
--- Define the function to be called when the slash command is used
-SlashCmdList["LOCKOUT"] = function(msg)
-    Lockout:SlashCommand()
+function Lockout:GetCastBar(info)
+	return self.db.profile.castBar
 end
 
+function Lockout:SetCastBarX(info, value)
+    self.db.profile.castBarX = tonumber(value)
+    if self.db.profile.castBarX == nil then
+        self.db.profile.castBarX = 0
+    end
+    self.customCastBar:SetPoint("CENTER", self.db.profile.castBarX, self.db.profile.castBarY)
+end
 
+function Lockout:GetCastBarX(info)
+    return tostring(self.db.profile.castBarX)
+end
 
+function Lockout:SetCastBarY(info, value)
+    self.db.profile.castBarY = tonumber(value)
+    self.customCastBar:SetPoint("CENTER", self.db.profile.castBarX, self.db.profile.castBarY)
+end
 
+function Lockout:GetCastBarY(info)
+    return tostring(self.db.profile.castBarY)
+end
+
+function Lockout:SetCastBarColor(info, r, g, b, a)
+    self.db.profile.castBarColor = {r, g, b, a}
+    self.customCastBar:SetStatusBarColor(r, g, b, a)
+end
+
+function Lockout:GetCastBarColor(info)
+    local color = self.db.profile.castBarColor
+    if color then
+        return unpack(color)
+    else
+        return 0.8, 0.5, 1, 1  -- Default to purple if no color is set
+    end
+end
+
+function Lockout:OnInitialize()
+    self.db = LibStub("AceDB-3.0"):New("LockoutDB", defaults, true)
+    AC:RegisterOptionsTable("Lockout", options)
+    self.optionsFrame = ACD:AddToBlizOptions("Lockout", "Lockout")
+
+    -- Show or hide customCastBar depending on the initial value of the castBar option
+    if self.db.profile.castBar then
+        self.customCastBar:Show()
+    else
+        self.customCastBar:Hide()
+    end
+    -- Set the color of the cast bar
+    local color = self.db.profile.castBarColor
+    if color then
+        self.customCastBar:SetStatusBarColor(unpack(color))
+    end
+
+    -- Set the point of the cast bar using the X and Y coordinates from the profile
+    self.customCastBar:SetPoint("CENTER", self.db.profile.castBarX, self.db.profile.castBarY)
+end
 
 -- Create interrupt Mark
-local interruptMark = CreateFrame("Frame", nil, customCastBar, "BackdropTemplate")
-interruptMark:SetSize(2, 15)
-interruptMark:SetBackdrop({bgFile = "Interface\\ChatFrame\\ChatFrameBackground"})
-interruptMark:SetBackdropColor(1, 0, 0)
-interruptMark:SetAlpha(0.5)
+Lockout.interruptMark = CreateFrame("Frame", nil, Lockout.customCastBar, "BackdropTemplate")
+Lockout.interruptMark:SetSize(2, 15)
+Lockout.interruptMark:SetBackdrop({bgFile = "Interface\\ChatFrame\\ChatFrameBackground"})
+Lockout.interruptMark:SetBackdropColor(1, 0, 0)
+Lockout.interruptMark:SetAlpha(0.5)
 
--- idk what this is used for lol
-local textFrame = CreateFrame("Frame", nil, UIParent)
-textFrame:SetSize(200, 100)
-textFrame:SetPoint("CENTER", 0, -314)
-local text = textFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-text:SetAllPoints(textFrame)
+-- Percent Text
+Lockout.textFrame = CreateFrame("Frame", nil, Lockout.customCastBar)
+Lockout.textFrame:SetSize(200, 17)
+Lockout.textFrame:SetPoint("BOTTOM", Lockout.customCastBar, "TOP", 0, 2)
+local text = Lockout.textFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+text:SetAllPoints(Lockout.textFrame)
 
 -- Create a frame to handle hiding and showing cast bar.
-local combatFrame = CreateFrame("Frame")
-combatFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-combatFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
-combatFrame:SetScript("OnEvent", function(self, event, ...)
+Lockout.combatFrame = CreateFrame("Frame")
+Lockout.combatFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+Lockout.combatFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+Lockout.combatFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_REGEN_ENABLED" then
-        background:Hide()
-        interruptMark:Hide()
+        Lockout.background:Hide()
+        Lockout.interruptMark:Hide()
+        Lockout.textFrame:Hide() -- Hide the percent text
     elseif event == "PLAYER_REGEN_DISABLED" then
-        background:Show()
-        interruptMark:Show()
+        Lockout.background:Show()
+        Lockout.interruptMark:Show()
+        Lockout.textFrame:Show() -- Show the percent text
     end
 end)
 
 -- Initially hide the background and interruptMark if not in combat
 if not InCombatLockdown() then
     Lockout.background:Hide()
-    interruptMark:Hide()
+    Lockout.interruptMark:Hide()
 end
 
--- Frame to handle events
+-- Determine When a Spell is Interrupted
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
 frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-
--- Script to determine if you were interrupted by an enemy spell, and when
 local spellInterruptedTime, combatLogEventTime, interruptedUnit, interruptedStartTime, interruptedEndTime
 frame:SetScript("OnEvent", function(self, event, ...)
     if event == "UNIT_SPELLCAST_INTERRUPTED" then
@@ -169,8 +230,8 @@ frame:SetScript("OnEvent", function(self, event, ...)
             local interruptedAt = spellInterruptedTime - interruptedStartTime
             local percentage = (interruptedAt / castTime) * 100
             text:SetText(string.format("%.2f", percentage) .. "%")
-            interruptMark:SetPoint("LEFT", customCastBar, "LEFT", Lockout.customCastBar:GetWidth() * (interruptedAt / castTime), 0)
-            interruptMark:Show()
+            Lockout.interruptMark:SetPoint("LEFT", Lockout.customCastBar, "LEFT", Lockout.customCastBar:GetWidth() * (interruptedAt / castTime), 0)
+            Lockout.interruptMark:Show()
         end
         spellInterruptedTime = nil
         combatLogEventTime = nil
@@ -180,7 +241,6 @@ frame:SetScript("OnEvent", function(self, event, ...)
     end
 end)
 
--- Update the custom casting bar when a spell starts or stops casting
 local function updateCustomCastBar()
     local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitCastingInfo("player")
     if name then
@@ -207,23 +267,17 @@ end)
 -- Update the custom casting bar every frame
 Lockout.customCastBar:SetScript("OnUpdate", updateCustomCastBar)
 
--- -- interrupt icon code --
--- local iconFrame = CreateFrame("Frame", nil, textFrame)
--- iconFrame:SetSize(20, 20)
--- iconFrame:SetPoint("LEFT", textFrame, "RIGHT", 10, 0)
--- local iconTexture = iconFrame:CreateTexture(nil, "BACKGROUND")
--- local spellID = 1766
--- local _, _, spellIcon = GetSpellInfo(spellID)
--- iconTexture:SetTexture(spellIcon)
--- iconTexture:SetAllPoints(iconFrame)
--- Create a frame to display the interrupt icon
--- local iconFrame = CreateFrame("Frame", nil, textFrame)
--- iconFrame:SetSize(20, 20) -- Adjust size as needed
--- iconFrame:SetPoint("LEFT", textFrame, "RIGHT", 10, 0) -- Position the icon to the right of the text frame
+-- Slash Commands
+SLASH_LOCKOUT1 = "/lockout"
+SlashCmdList["LOCKOUT"] = function(msg)
+    Lockout:SlashCommand()
+end
 
--- -- Set the texture of the interrupt icon
--- local iconTexture = iconFrame:CreateTexture(nil, "OVERLAY")
--- iconTexture:SetAllPoints(iconFrame)
+-- Profiles
+function Lockout: ExportProfile()
 
--- GUI and Settings
+end
 
+function Lockout: ImportProfile()
+
+end
