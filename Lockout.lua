@@ -70,6 +70,29 @@ local options = {
     },
 }
 
+-- Mapping of interrupt spell IDs to class colors
+local interruptSpellIdToClassColor = {
+    [47528] = RAID_CLASS_COLORS["DEATHKNIGHT"],
+    [183752] = RAID_CLASS_COLORS["DEMONHUNTER"],
+    [96231] = RAID_CLASS_COLORS["PALADIN"],
+    [106839] = RAID_CLASS_COLORS["DRUID"],
+    [78675] = RAID_CLASS_COLORS["DRUID"],
+    [106839] = RAID_CLASS_COLORS["DRUID"],
+    [6552] = RAID_CLASS_COLORS["WARRIOR"],
+    [119910] = RAID_CLASS_COLORS["WARLOCK"],
+    [212619] = RAID_CLASS_COLORS["WARLOCK"],
+    [57994] = RAID_CLASS_COLORS["SHAMAN"],
+    [147362] = RAID_CLASS_COLORS["HUNTER"],
+    [187707] = RAID_CLASS_COLORS["HUNTER"],
+    [2139] = RAID_CLASS_COLORS["MAGE"],
+    [1766] = RAID_CLASS_COLORS["ROGUE"],
+    [116705] = RAID_CLASS_COLORS["MONK"],
+    [351338] = RAID_CLASS_COLORS["EVOKER"],
+}
+
+Lockout.interruptMarks = Lockout.interruptMarks or {}
+
+
 -- Create a custom casting bar
 Lockout.customCastBar = CreateFrame("StatusBar", nil, UIParent)
 Lockout.customCastBar:SetSize(206, 7)
@@ -144,6 +167,7 @@ function Lockout:GetCastBarColor(info)
 end
 
 function Lockout:OnInitialize()
+    print("Initializing")
     self.db = LibStub("AceDB-3.0"):New("LockoutDB", defaults, true)
     AC:RegisterOptionsTable("Lockout", options)
     self.optionsFrame = ACD:AddToBlizOptions("Lockout", "Lockout")
@@ -165,11 +189,43 @@ function Lockout:OnInitialize()
 end
 
 -- Create interrupt Mark
-Lockout.interruptMark = CreateFrame("Frame", nil, Lockout.customCastBar, "BackdropTemplate")
-Lockout.interruptMark:SetSize(2, 15)
-Lockout.interruptMark:SetBackdrop({bgFile = "Interface\\ChatFrame\\ChatFrameBackground"})
-Lockout.interruptMark:SetBackdropColor(1, 0, 0)
-Lockout.interruptMark:SetAlpha(0.5)
+function CreateInterruptMark()
+    print("Creating interrupt mark")
+    local interruptMark = CreateFrame("Frame", nil, Lockout.customCastBar, "BackdropTemplate")
+    interruptMark:SetSize(2, 15)
+    interruptMark:SetBackdrop({bgFile = "Interface\\ChatFrame\\ChatFrameBackground"})
+    interruptMark:SetBackdropColor(1, 0, 0)
+    interruptMark:SetAlpha(1.0)
+    return interruptMark
+end
+
+function CreateInterruptIcon(interruptID)
+    print("Creating interrupt icon")
+    -- Check if interruptID is not nil
+    if interruptID then
+        print("Creating interrupt icon for ID: ", interruptID)
+        -- Ensure the interrupt mark for this interruptID exists
+        local interruptMark = Lockout.interruptMarks[interruptID]
+        if not interruptMark then
+            -- If it doesn't exist, create it and store it in the interruptMarks table
+            print("Interrupt mark does not exist, creating new one")
+            interruptMark = CreateInterruptMark()
+            Lockout.interruptMarks[interruptID] = interruptMark
+        else
+            print("Interrupt mark already exists")
+        end
+
+        local spellIconPath = GetSpellTexture(interruptID)
+        local iconTexture = interruptMark:CreateTexture(nil, "ARTWORK")
+        iconTexture:SetSize(20, 20)  -- Set the size of the texture to 20x20
+        iconTexture:SetPoint("CENTER", interruptMark, 0, 20)  -- Position the texture at the center of the interruptMark frame and move it up by 10px
+        iconTexture:SetTexture(spellIconPath)
+        iconTexture:SetAlpha(1.0)  -- Set the alpha of the texture to 1.0
+    else
+        -- Handle the case where interruptID is nil
+        print("Error: interruptID is nil")
+    end
+end
 
 -- Percent Text
 Lockout.textFrame = CreateFrame("Frame", nil, Lockout.customCastBar)
@@ -182,29 +238,43 @@ text:SetAllPoints(Lockout.textFrame)
 Lockout.combatFrame = CreateFrame("Frame")
 Lockout.combatFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 Lockout.combatFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+Lockout.combatFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 Lockout.combatFrame:SetScript("OnEvent", function(self, event, ...)
+    print("Handling event: " .. event)
     if event == "PLAYER_REGEN_ENABLED" then
         Lockout.background:Hide()
-        Lockout.interruptMark:Hide()
+        for i, interruptMark in ipairs(Lockout.interruptMarks) do
+            interruptMark:Hide()
+        end
         Lockout.textFrame:Hide() -- Hide the percent text
     elseif event == "PLAYER_REGEN_DISABLED" then
         Lockout.background:Show()
-        Lockout.interruptMark:Show()
+        for i, interruptMark in ipairs(Lockout.interruptMarks) do
+            interruptMark:Show()
+        end
         Lockout.textFrame:Show() -- Show the percent text
+    end
+    if event == "ZONE_CHANGED_NEW_AREA" then
+        -- Iterate over the table and reset the data for each interrupt mark
+        for i, interruptMark in ipairs(Lockout.interruptMarks) do
+            interruptMark:Hide()
+        end    
     end
 end)
 
--- Initially hide the background and interruptMark if not in combat
+-- Initially hide the background and each interruptMark if not in combat
 if not InCombatLockdown() then
     Lockout.background:Hide()
-    Lockout.interruptMark:Hide()
+    for i, interruptMark in ipairs(Lockout.interruptMarks) do
+        interruptMark:Hide()
+    end
 end
 
 -- Determine When a Spell is Interrupted
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
 frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-local spellInterruptedTime, combatLogEventTime, interruptedUnit, interruptedStartTime, interruptedEndTime
+local spellInterruptedTime, combatLogEventTime, interruptedUnit, interruptedStartTime, interruptedEndTime, interruptID, interruptSourceName
 frame:SetScript("OnEvent", function(self, event, ...)
     if event == "UNIT_SPELLCAST_INTERRUPTED" then
         local unit = ...
@@ -218,9 +288,11 @@ frame:SetScript("OnEvent", function(self, event, ...)
             end
         end
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        local _, subEvent, _, _, _, _, _, destGUID, _, _, _, _, _, _, _, extraSpellID = CombatLogGetCurrentEventInfo()
+        local timestamp, subEvent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool, extraSpellId, extraSpellName, extraSchool = CombatLogGetCurrentEventInfo()
         if subEvent == "SPELL_INTERRUPT" and destGUID == UnitGUID("player") then
             combatLogEventTime = GetTime()
+            interruptID = spellId
+            interruptSourceName = sourceName
         end
     end
 
@@ -229,15 +301,33 @@ frame:SetScript("OnEvent", function(self, event, ...)
             local castTime = interruptedEndTime - interruptedStartTime
             local interruptedAt = spellInterruptedTime - interruptedStartTime
             local percentage = (interruptedAt / castTime) * 100
-            text:SetText(string.format("%.2f", percentage) .. "%")
-            Lockout.interruptMark:SetPoint("LEFT", Lockout.customCastBar, "LEFT", Lockout.customCastBar:GetWidth() * (interruptedAt / castTime), 0)
-            Lockout.interruptMark:Show()
+            local interruptMark = Lockout.interruptMarks[interruptID]
+            print("Interrupt ID found when interrupted:", interruptID)
+            if interruptID then
+                if not interruptMark then
+                    -- Create a new interruptMark if it doesn't exist
+                    interruptMark = CreateInterruptIcon(interruptID)
+                    print("Created Interrupt Icon")
+                    Lockout.interruptMarks[interruptID] = interruptMark
+                end
+            
+                Lockout.interruptMarks[interruptID]:SetPoint("LEFT", Lockout.customCastBar, "LEFT", Lockout.customCastBar:GetWidth() * (interruptedAt / castTime), 0)
+            
+                if color then
+                    -- Set the color of the interruptMark
+                    Lockout.interruptMarks[interruptID]:SetBackdropColor(color.r, color.g, color.b)
+                end
+            
+                -- Show the interrupt mark
+                Lockout.interruptMarks[interruptID]:Show()
+            end
         end
         spellInterruptedTime = nil
         combatLogEventTime = nil
         interruptedUnit = nil
         interruptedStartTime = nil
         interruptedEndTime = nil
+        interruptID = nil
     end
 end)
 
@@ -281,3 +371,4 @@ end
 function Lockout: ImportProfile()
 
 end
+
