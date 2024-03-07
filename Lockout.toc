@@ -3,6 +3,7 @@
 ## Version: 1.0.0
 ## Notes: Interrupting/Fake casting Addon
 ## Author: Ethan Rule
+## SavedVariables: LockoutDB
 ## DefaultState: enabled
 
 #@no-lib-strip@

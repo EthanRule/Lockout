@@ -33,6 +33,7 @@
         "FocusFrameSpellBar",
         "PlayerCastingBarFrame",
         "LOSS_OF_CONTROL_DISPLAY_INTERRUPT_SCHOOL",
-        "CastingBarFrame"
+        "CastingBarFrame",
+        "InterfaceOptionsFrame_OpenToCategory"
     ]
 }
