@@ -90,6 +90,24 @@ local interruptSpellIdToClassColor = {
     [351338] = RAID_CLASS_COLORS["EVOKER"],
 }
 
+local interruptCoolDowns = {
+    [47528] = 15,
+    [183752] = 15,
+    [96231] = 15,
+    [78675] = 15,
+    [106839] = 15,
+    [6552] = 15,
+    [119910] = 24,
+    [212619] = 24,
+    [57994] = 12,
+    [147362] = 24,
+    [187707] = 15,
+    [2139] = 24,
+    [1766] = 15,
+    [116705] = 15,
+    [351338] = 20,
+}
+
 Lockout.interruptMarks = Lockout.interruptMarks or {}
 
 
@@ -202,11 +220,46 @@ function CreateInterruptMark(interruptID)
     print("interruptID:", interruptID)
     print("spellIconPath:", spellIconPath)
 
-    local iconTexture = interruptMark:CreateTexture(nil, "ARTWORK")
+    local iconTexture = interruptMark:CreateTexture(nil, "BACKGROUND")  -- Change the draw layer to "BACKGROUND"
     iconTexture:SetSize(20, 20)  -- Set the size of the texture to 20x20
     iconTexture:SetPoint("CENTER", interruptMark, 0, 20)  -- Position the texture at the center of the interruptMark frame and move it up by 10px
     iconTexture:SetTexture(spellIconPath)
     iconTexture:SetAlpha(1.0)  -- Set the alpha of the texture to 1.0
+
+    -- Create a cooldown frame
+    local cooldown = CreateFrame("Cooldown", nil, interruptMark, "CooldownFrameTemplate")
+    cooldown:SetAllPoints(iconTexture)  -- Make the cooldown frame cover the entire icon texture
+    cooldown:SetDrawEdge(false)  -- Don't draw the edge of the cooldown frame
+    cooldown:SetSwipeColor(0, 0, 0, 0.8)  -- Set the color of the cooldown swipe
+    cooldown:SetHideCountdownNumbers(true)  -- Hide the countdown numbers
+
+    interruptMark.cooldown = cooldown
+
+    -- Get the cooldown of the spell from the interruptCoolDowns table
+    local duration = interruptCoolDowns[interruptID]
+    print("Duration:", duration)
+    local start = 0  -- Initialize start to 0
+    if duration and duration > 0 then
+        -- Start the cooldown sweep
+        start = GetTime()
+        cooldown:SetCooldown(start, duration)
+    end
+
+    -- Get the spell name
+    local spellName = GetSpellInfo(interruptID)
+    interruptMark.spellName = spellName
+
+    -- Forward declaration of ticker
+    local ticker
+
+    -- Create a ticker that prints the remaining cooldown and the spell name every 1 second
+    ticker = C_Timer.NewTicker(1, function()
+        local remaining = max(0, start + duration - GetTime())
+        print("Remaining cooldown for", spellName, ":", remaining)
+        if remaining <= 0 then
+            ticker:Cancel()  -- Stop the ticker when the remaining cooldown is 0
+        end
+    end)
 
     interruptMark:Show()
     interruptMark:Raise()
@@ -342,6 +395,28 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     -- Update the position of the existing interrupt mark
                     interruptMark:SetPoint("LEFT", Lockout.customCastBar, "LEFT", Lockout.customCastBar:GetWidth() * (interruptedAt / castTime), 0)
                     print("Updated Interrupt Icon Position")
+
+                    -- Update the cooldown sweep
+                    local duration = interruptCoolDowns[interruptID]
+                    local start = 0
+                    if duration and duration > 0 then
+                        start = GetTime()
+                        interruptMark.cooldown:SetCooldown(start, duration)
+                    end
+                
+                    -- Cancel the existing ticker if it exists
+                    if interruptMark.ticker then
+                        interruptMark.ticker:Cancel()
+                    end
+                
+                    -- Restart the ticker
+                    interruptMark.ticker = C_Timer.NewTicker(1, function()
+                        local remaining = max(0, start + duration - GetTime())
+                        print("Remaining cooldown for", interruptMark.spellName, ":", remaining)
+                        if remaining <= 0 then
+                            interruptMark.ticker:Cancel()
+                        end
+                    end)
                 end
             end
         end
