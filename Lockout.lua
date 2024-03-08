@@ -189,17 +189,32 @@ function Lockout:OnInitialize()
 end
 
 -- Create interrupt Mark
-function CreateInterruptMark()
+function CreateInterruptMark(interruptID)
     print("Creating interrupt mark")
     local interruptMark = CreateFrame("Frame", nil, Lockout.customCastBar, "BackdropTemplate")
     interruptMark:SetSize(2, 15)
     interruptMark:SetBackdrop({bgFile = "Interface\\ChatFrame\\ChatFrameBackground"})
     interruptMark:SetBackdropColor(1, 0, 0)
     interruptMark:SetAlpha(1.0)
+
+    -- Add the icon texture
+    local spellIconPath = GetSpellTexture(interruptID)
+    print("interruptID:", interruptID)
+    print("spellIconPath:", spellIconPath)
+
+    local iconTexture = interruptMark:CreateTexture(nil, "ARTWORK")
+    iconTexture:SetSize(20, 20)  -- Set the size of the texture to 20x20
+    iconTexture:SetPoint("CENTER", interruptMark, 0, 20)  -- Position the texture at the center of the interruptMark frame and move it up by 10px
+    iconTexture:SetTexture(spellIconPath)
+    iconTexture:SetAlpha(1.0)  -- Set the alpha of the texture to 1.0
+
+    interruptMark:Show()
+    interruptMark:Raise()
+
     return interruptMark
 end
 
-function CreateInterruptIcon(interruptID)
+function CreateInterruptIcon(interruptID, Lockout, interruptedAt, castTime, color)
     print("Creating interrupt icon")
     -- Check if interruptID is not nil
     if interruptID then
@@ -209,18 +224,29 @@ function CreateInterruptIcon(interruptID)
         if not interruptMark then
             -- If it doesn't exist, create it and store it in the interruptMarks table
             print("Interrupt mark does not exist, creating new one")
-            interruptMark = CreateInterruptMark()
+            interruptMark = CreateInterruptMark(interruptID)
             Lockout.interruptMarks[interruptID] = interruptMark
         else
             print("Interrupt mark already exists")
         end
 
-        local spellIconPath = GetSpellTexture(interruptID)
-        local iconTexture = interruptMark:CreateTexture(nil, "ARTWORK")
-        iconTexture:SetSize(20, 20)  -- Set the size of the texture to 20x20
-        iconTexture:SetPoint("CENTER", interruptMark, 0, 20)  -- Position the texture at the center of the interruptMark frame and move it up by 10px
-        iconTexture:SetTexture(spellIconPath)
-        iconTexture:SetAlpha(1.0)  -- Set the alpha of the texture to 1.0
+        -- Set the position of the interrupt mark
+        interruptMark:SetPoint("LEFT", Lockout.customCastBar, "LEFT", Lockout.customCastBar:GetWidth() * (interruptedAt / castTime), 0)
+
+        if color then
+            -- Set the color of the interrupt mark
+            interruptMark:SetBackdropColor(color.r, color.g, color.b)
+        end
+
+        -- Show the interrupt mark
+        interruptMark:Show()
+
+        -- Print the interruptMarks table
+        for k, v in pairs(Lockout.interruptMarks) do
+            print("Key: ", k, ", Value type: ", type(v))
+        end
+
+        return interruptMark  -- Return the interrupt mark
     else
         -- Handle the case where interruptID is nil
         print("Error: interruptID is nil")
@@ -256,8 +282,9 @@ Lockout.combatFrame:SetScript("OnEvent", function(self, event, ...)
     end
     if event == "ZONE_CHANGED_NEW_AREA" then
         -- Iterate over the table and reset the data for each interrupt mark
-        for i, interruptMark in ipairs(Lockout.interruptMarks) do
-            interruptMark:Hide()
+        for k in pairs(Lockout.interruptMarks) do
+            Lockout.interruptMarks[k]:Hide()
+            Lockout.interruptMarks[k] = nil
         end    
     end
 end)
@@ -306,20 +333,16 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if interruptID then
                 if not interruptMark then
                     -- Create a new interruptMark if it doesn't exist
-                    interruptMark = CreateInterruptIcon(interruptID)
-                    print("Created Interrupt Icon")
-                    Lockout.interruptMarks[interruptID] = interruptMark
+                    if table.getn(Lockout.interruptMarks) < 3 then
+                        interruptMark = CreateInterruptIcon(interruptID, Lockout, interruptedAt, castTime, interruptSpellIdToClassColor[interruptID])
+                        print("Created Interrupt Icon")
+                        Lockout.interruptMarks[interruptID] = interruptMark
+                    end
+                else
+                    -- Update the position of the existing interrupt mark
+                    interruptMark:SetPoint("LEFT", Lockout.customCastBar, "LEFT", Lockout.customCastBar:GetWidth() * (interruptedAt / castTime), 0)
+                    print("Updated Interrupt Icon Position")
                 end
-            
-                Lockout.interruptMarks[interruptID]:SetPoint("LEFT", Lockout.customCastBar, "LEFT", Lockout.customCastBar:GetWidth() * (interruptedAt / castTime), 0)
-            
-                if color then
-                    -- Set the color of the interruptMark
-                    Lockout.interruptMarks[interruptID]:SetBackdropColor(color.r, color.g, color.b)
-                end
-            
-                -- Show the interrupt mark
-                Lockout.interruptMarks[interruptID]:Show()
             end
         end
         spellInterruptedTime = nil
