@@ -21,6 +21,11 @@ local options = {
     handler = Lockout,
     type = "group",
     args = {
+        header = {
+            order = 0,
+            type = "description",
+            name = "This is a cast bar overlay. Position the cast bar in the center of your default one.\n\n|cFFFFD700Author:|r Rudar",
+        },
         castBar = {
             name = "Show Cast Bar",
             desc = "Enables / disables the Cast Bar",
