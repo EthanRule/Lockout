@@ -12,7 +12,9 @@ local defaults = {
 		castBar = true,
         castBarX = 0,
         castBarY = -326,
-		comps = {},
+        castBarWidth = 206,
+        castBarHeight = 7,
+        castBarColor = {0.8, 0.5, 1, 1},
 	},
 }
 
@@ -57,6 +59,29 @@ local options = {
             set = "SetCastBarColor",
             get = "GetCastBarColor",
             order = 4,
+        },
+        castBarWidth = {
+            name = "Cast Bar Width",
+            desc = "Set the width of the Cast Bar",
+            type = "input",
+            set = "SetCastBarWidth",
+            get = "GetCastBarWidth",
+            order = 5,
+        },
+        castBarHeight = {
+            name = "Cast Bar Height",
+            desc = "Set the height of the Cast Bar",
+            type = "input",
+            set = "SetCastBarHeight",
+            get = "GetCastBarHeight",
+            order = 6,
+        },
+        reset = {
+            name = "Reset to Defaults",
+            desc = "Reset the settings to their default values",
+            type = "execute",
+            func = "ResetToDefaults",
+            order = 7,
         },
         -- import = {
         --     name = "Import",
@@ -140,6 +165,8 @@ function Lockout:SlashCommand()
     InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
 end
 
+-- Setters & Getters
+
 function Lockout:SetCastBar(info)
 	local pop = self.db.profile.castBar
 	self.db.profile.castBar = not pop
@@ -175,6 +202,27 @@ function Lockout:GetCastBarY(info)
     return tostring(self.db.profile.castBarY)
 end
 
+function Lockout:GetCastBarWidth(info)
+    return tostring(self.db.profile.castBarWidth)
+end
+
+function Lockout:SetCastBarWidth(info, value)
+    self.db.profile.castBarWidth = tonumber(value)
+    if self.db.profile.castBarWidth == nil then
+        self.db.profile.castBarWidth = 206
+    end
+    self.customCastBar:SetSize(self.db.profile.castBarWidth, self.db.profile.castBarHeight)
+end
+
+function Lockout:GetCastBarHeight(info)
+    return tostring(self.db.profile.castBarHeight)
+end
+
+function Lockout:SetCastBarHeight(info, value)
+    self.db.profile.castBarHeight = tonumber(value)
+    self.customCastBar:SetSize(self.db.profile.castBarWidth, self.db.profile.castBarHeight)
+end
+
 function Lockout:SetCastBarColor(info, r, g, b, a)
     self.db.profile.castBarColor = {r, g, b, a}
     self.customCastBar:SetStatusBarColor(r, g, b, a)
@@ -186,6 +234,22 @@ function Lockout:GetCastBarColor(info)
         return unpack(color)
     else
         return 0.8, 0.5, 1, 1  -- Default to purple if no color is set
+    end
+end
+
+function Lockout:ResetToDefaults(info)
+    self.db.profile = {}
+    for k, v in pairs(defaults.profile) do
+        self.db.profile[k] = v
+    end
+    -- Update the UI elements to reflect the new settings
+    self.customCastBar:SetSize(self.db.profile.castBarWidth, self.db.profile.castBarHeight)
+    self.customCastBar:SetPoint("CENTER", self.db.profile.castBarX, self.db.profile.castBarY)
+    self.customCastBar:SetStatusBarColor(unpack(self.db.profile.castBarColor))
+    if self.db.profile.castBar then
+        self.customCastBar:Show()
+    else
+        self.customCastBar:Hide()
     end
 end
 
