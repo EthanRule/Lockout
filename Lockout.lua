@@ -4,6 +4,7 @@ local ACD = LibStub("AceConfigDialog-3.0")
 local ACR = LibStub("AceConfigRegistry-3.0")
 local AceGUI = LibStub("AceGUI-3.0")
 local LSM = LibStub("LibSharedMedia-3.0")
+local debugStatements = false
 
 -- UI and database
 local defaults = {
@@ -12,7 +13,9 @@ local defaults = {
 		castBar = true,
         castBarX = 0,
         castBarY = -326,
-		comps = {},
+        castBarWidth = 206,
+        castBarHeight = 7,
+        castBarColor = {0.8, 0.5, 1, 1},
 	},
 }
 
@@ -21,6 +24,11 @@ local options = {
     handler = Lockout,
     type = "group",
     args = {
+        header = {
+            order = 0,
+            type = "description",
+            name = "This is a cast bar overlay. Position the cast bar in the center of your default one.\n\n|cFFFFD700Author:|r Rudar",
+        },
         castBar = {
             name = "Show Cast Bar",
             desc = "Enables / disables the Cast Bar",
@@ -53,6 +61,29 @@ local options = {
             get = "GetCastBarColor",
             order = 4,
         },
+        castBarWidth = {
+            name = "Cast Bar Width",
+            desc = "Set the width of the Cast Bar",
+            type = "input",
+            set = "SetCastBarWidth",
+            get = "GetCastBarWidth",
+            order = 5,
+        },
+        castBarHeight = {
+            name = "Cast Bar Height",
+            desc = "Set the height of the Cast Bar",
+            type = "input",
+            set = "SetCastBarHeight",
+            get = "GetCastBarHeight",
+            order = 6,
+        },
+        -- reset = {
+        --     name = "Reset to Defaults",
+        --     desc = "Reset the settings to their default values",
+        --     type = "execute",
+        --     func = "ResetToDefaults",
+        --     order = 7,
+        -- },
         -- import = {
         --     name = "Import",
         --     desc = "Import a profile",
@@ -69,6 +100,47 @@ local options = {
         -- }
     },
 }
+
+-- Mapping of interrupt spell IDs to class colors
+local interruptSpellIdToClassColor = {
+    [47528] = RAID_CLASS_COLORS["DEATHKNIGHT"],
+    [183752] = RAID_CLASS_COLORS["DEMONHUNTER"],
+    [96231] = RAID_CLASS_COLORS["PALADIN"],
+    [106839] = RAID_CLASS_COLORS["DRUID"],
+    [78675] = RAID_CLASS_COLORS["DRUID"],
+    [106839] = RAID_CLASS_COLORS["DRUID"],
+    [6552] = RAID_CLASS_COLORS["WARRIOR"],
+    [119910] = RAID_CLASS_COLORS["WARLOCK"],
+    [212619] = RAID_CLASS_COLORS["WARLOCK"],
+    [57994] = RAID_CLASS_COLORS["SHAMAN"],
+    [147362] = RAID_CLASS_COLORS["HUNTER"],
+    [187707] = RAID_CLASS_COLORS["HUNTER"],
+    [2139] = RAID_CLASS_COLORS["MAGE"],
+    [1766] = RAID_CLASS_COLORS["ROGUE"],
+    [116705] = RAID_CLASS_COLORS["MONK"],
+    [351338] = RAID_CLASS_COLORS["EVOKER"],
+}
+
+local interruptCoolDowns = {
+    [47528] = 15,
+    [183752] = 15,
+    [96231] = 15,
+    [78675] = 60,
+    [106839] = 15,
+    [6552] = 14,
+    [119910] = 24,
+    [212619] = 60,
+    [57994] = 12,
+    [147362] = 24,
+    [187707] = 15,
+    [2139] = 20,
+    [1766] = 15,
+    [116705] = 15,
+    [351338] = 20,
+}
+
+Lockout.interruptMarks = Lockout.interruptMarks or {}
+
 
 -- Create a custom casting bar
 Lockout.customCastBar = CreateFrame("StatusBar", nil, UIParent)
@@ -87,12 +159,16 @@ if texture then
     Lockout.customCastBar:SetStatusBarTexture(texture)
     Lockout.customCastBar:SetStatusBarColor(0.8, 0.5, 1)  -- Set the color to purple
 else
-    print("Texture not found")
+    if debugStatements then
+        print("Texture not found")
+    end
 end
 
 function Lockout:SlashCommand()
     InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
 end
+
+-- Setters & Getters
 
 function Lockout:SetCastBar(info)
 	local pop = self.db.profile.castBar
@@ -129,6 +205,27 @@ function Lockout:GetCastBarY(info)
     return tostring(self.db.profile.castBarY)
 end
 
+function Lockout:GetCastBarWidth(info)
+    return tostring(self.db.profile.castBarWidth)
+end
+
+function Lockout:SetCastBarWidth(info, value)
+    self.db.profile.castBarWidth = tonumber(value)
+    if self.db.profile.castBarWidth == nil then
+        self.db.profile.castBarWidth = 206
+    end
+    self.customCastBar:SetSize(self.db.profile.castBarWidth, self.db.profile.castBarHeight)
+end
+
+function Lockout:GetCastBarHeight(info)
+    return tostring(self.db.profile.castBarHeight)
+end
+
+function Lockout:SetCastBarHeight(info, value)
+    self.db.profile.castBarHeight = tonumber(value)
+    self.customCastBar:SetSize(self.db.profile.castBarWidth, self.db.profile.castBarHeight)
+end
+
 function Lockout:SetCastBarColor(info, r, g, b, a)
     self.db.profile.castBarColor = {r, g, b, a}
     self.customCastBar:SetStatusBarColor(r, g, b, a)
@@ -143,7 +240,26 @@ function Lockout:GetCastBarColor(info)
     end
 end
 
+-- function Lockout:ResetToDefaults(info)
+--     self.db.profile = {}
+--     for k, v in pairs(defaults.profile) do
+--         self.db.profile[k] = v
+--     end
+--     -- Update the UI elements to reflect the new settings
+--     self.customCastBar:SetSize(self.db.profile.castBarWidth, self.db.profile.castBarHeight)
+--     self.customCastBar:SetPoint("CENTER", self.db.profile.castBarX, self.db.profile.castBarY)
+--     self.customCastBar:SetStatusBarColor(unpack(self.db.profile.castBarColor))
+--     if self.db.profile.castBar then
+--         self.customCastBar:Show()
+--     else
+--         self.customCastBar:Hide()
+--     end
+-- end
+
 function Lockout:OnInitialize()
+    if debugStatements then
+        print("Initializing")
+    end
     self.db = LibStub("AceDB-3.0"):New("LockoutDB", defaults, true)
     AC:RegisterOptionsTable("Lockout", options)
     self.optionsFrame = ACD:AddToBlizOptions("Lockout", "Lockout")
@@ -165,11 +281,116 @@ function Lockout:OnInitialize()
 end
 
 -- Create interrupt Mark
-Lockout.interruptMark = CreateFrame("Frame", nil, Lockout.customCastBar, "BackdropTemplate")
-Lockout.interruptMark:SetSize(2, 15)
-Lockout.interruptMark:SetBackdrop({bgFile = "Interface\\ChatFrame\\ChatFrameBackground"})
-Lockout.interruptMark:SetBackdropColor(1, 0, 0)
-Lockout.interruptMark:SetAlpha(0.5)
+function CreateInterruptMark(interruptID)
+    if debugStatements then
+        print("Creating interrupt mark")
+    end
+    local interruptMark = CreateFrame("Frame", nil, Lockout.customCastBar, "BackdropTemplate")
+    interruptMark:SetSize(2, 15)
+    interruptMark:SetBackdrop({bgFile = "Interface\\ChatFrame\\ChatFrameBackground"})
+    interruptMark:SetBackdropColor(1, 0, 0)
+    interruptMark:SetAlpha(1.0)
+
+    -- Add the icon texture
+    local spellIconPath = GetSpellTexture(interruptID)
+    if debugStatements then
+        print("interruptID:", interruptID)
+        print("spellIconPath:", spellIconPath)
+    end
+    local iconTexture = interruptMark:CreateTexture(nil, "BACKGROUND")  -- Change the draw layer to "BACKGROUND"
+    iconTexture:SetSize(20, 20)  -- Set the size of the texture to 20x20
+    iconTexture:SetPoint("CENTER", interruptMark, 0, 20)  -- Position the texture at the center of the interruptMark frame and move it up by 10px
+    iconTexture:SetTexture(spellIconPath)
+    iconTexture:SetAlpha(1.0)  -- Set the alpha of the texture to 1.0
+
+    -- Create a cooldown frame
+    local cooldown = CreateFrame("Cooldown", nil, interruptMark, "CooldownFrameTemplate")
+    cooldown:SetAllPoints(iconTexture)  -- Make the cooldown frame cover the entire icon texture
+    cooldown:SetDrawEdge(false)  -- Don't draw the edge of the cooldown frame
+    cooldown:SetSwipeColor(0, 0, 0, 0.8)  -- Set the color of the cooldown swipe
+    cooldown:SetHideCountdownNumbers(true)  -- Hide the countdown numbers
+
+    interruptMark.cooldown = cooldown
+
+    -- Get the cooldown of the spell from the interruptCoolDowns table
+    local duration = interruptCoolDowns[interruptID]
+    if debugStatements then
+        print("Duration:", duration)
+    end
+    local start = 0  -- Initialize start to 0
+    if duration and duration > 0 then
+        -- Start the cooldown sweep
+        start = GetTime()
+        cooldown:SetCooldown(start, duration)
+    end
+
+    -- Get the spell name
+    local spellName = GetSpellInfo(interruptID)
+    interruptMark.spellName = spellName
+
+    -- Forward declaration of ticker
+    local ticker
+
+    -- Create a ticker that prints the remaining cooldown and the spell name every 1 second
+    ticker = C_Timer.NewTicker(1, function()
+        local remaining = max(0, start + duration - GetTime())
+        if debugStatements then
+            print("Remaining cooldown for", spellName, ":", remaining)
+        end
+        if remaining <= 0 then
+            ticker:Cancel()  -- Stop the ticker when the remaining cooldown is 0
+        end
+    end)
+
+    interruptMark:Show()
+    interruptMark:Raise()
+
+    return interruptMark
+end
+
+function CreateInterruptIcon(interruptID, Lockout, interruptedAt, castTime, color)
+    if debugStatements then
+        print("Creating interrupt icon")
+    end
+    -- Check if interruptID is not nil
+    if interruptID then
+        if debugStatements then
+            print("Creating interrupt icon for ID: ", interruptID)
+        end
+        -- Ensure the interrupt mark for this interruptID exists
+        local interruptMark = Lockout.interruptMarks[interruptID]
+        if not interruptMark then
+            -- If it doesn't exist, create it and store it in the interruptMarks table
+            if debugStatements then
+                print("Interrupt mark does not exist, creating new one")
+            end
+            interruptMark = CreateInterruptMark(interruptID)
+            Lockout.interruptMarks[interruptID] = interruptMark
+        else
+            if debugStatements then
+                print("Interrupt mark already exists")
+            end
+        end
+
+        -- Set the position of the interrupt mark
+        interruptMark:SetPoint("LEFT", Lockout.customCastBar, "LEFT", Lockout.customCastBar:GetWidth() * (interruptedAt / castTime), 0)
+
+        if color then
+            -- Set the color of the interrupt mark
+            interruptMark:SetBackdropColor(color.r, color.g, color.b)
+        end
+
+        -- Show the interrupt mark
+        interruptMark:Show()
+
+        return interruptMark  -- Return the interrupt mark
+    else
+        -- Handle the case where interruptID is nil
+        if debugStatements then
+            print("Error: interruptID is nil")
+        end
+    end
+end
 
 -- Percent Text
 Lockout.textFrame = CreateFrame("Frame", nil, Lockout.customCastBar)
@@ -182,29 +403,46 @@ text:SetAllPoints(Lockout.textFrame)
 Lockout.combatFrame = CreateFrame("Frame")
 Lockout.combatFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 Lockout.combatFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+Lockout.combatFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 Lockout.combatFrame:SetScript("OnEvent", function(self, event, ...)
+    if debugStatements then
+        print("Handling event: " .. event)
+    end
     if event == "PLAYER_REGEN_ENABLED" then
         Lockout.background:Hide()
-        Lockout.interruptMark:Hide()
+        for i, interruptMark in ipairs(Lockout.interruptMarks) do
+            interruptMark:Hide()
+        end
         Lockout.textFrame:Hide() -- Hide the percent text
     elseif event == "PLAYER_REGEN_DISABLED" then
         Lockout.background:Show()
-        Lockout.interruptMark:Show()
+        for i, interruptMark in ipairs(Lockout.interruptMarks) do
+            interruptMark:Show()
+        end
         Lockout.textFrame:Show() -- Show the percent text
+    end
+    if event == "ZONE_CHANGED_NEW_AREA" then
+        -- Iterate over the table and reset the data for each interrupt mark
+        for k in pairs(Lockout.interruptMarks) do
+            Lockout.interruptMarks[k]:Hide()
+            Lockout.interruptMarks[k] = nil
+        end    
     end
 end)
 
--- Initially hide the background and interruptMark if not in combat
+-- Initially hide the background and each interruptMark if not in combat
 if not InCombatLockdown() then
     Lockout.background:Hide()
-    Lockout.interruptMark:Hide()
+    for i, interruptMark in ipairs(Lockout.interruptMarks) do
+        interruptMark:Hide()
+    end
 end
 
 -- Determine When a Spell is Interrupted
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
 frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-local spellInterruptedTime, combatLogEventTime, interruptedUnit, interruptedStartTime, interruptedEndTime
+local spellInterruptedTime, combatLogEventTime, interruptedUnit, interruptedStartTime, interruptedEndTime, interruptID, interruptSourceName
 frame:SetScript("OnEvent", function(self, event, ...)
     if event == "UNIT_SPELLCAST_INTERRUPTED" then
         local unit = ...
@@ -218,9 +456,11 @@ frame:SetScript("OnEvent", function(self, event, ...)
             end
         end
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        local _, subEvent, _, _, _, _, _, destGUID, _, _, _, _, _, _, _, extraSpellID = CombatLogGetCurrentEventInfo()
+        local timestamp, subEvent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool, extraSpellId, extraSpellName, extraSchool = CombatLogGetCurrentEventInfo()
         if subEvent == "SPELL_INTERRUPT" and destGUID == UnitGUID("player") then
             combatLogEventTime = GetTime()
+            interruptID = spellId
+            interruptSourceName = sourceName
         end
     end
 
@@ -229,15 +469,59 @@ frame:SetScript("OnEvent", function(self, event, ...)
             local castTime = interruptedEndTime - interruptedStartTime
             local interruptedAt = spellInterruptedTime - interruptedStartTime
             local percentage = (interruptedAt / castTime) * 100
-            text:SetText(string.format("%.2f", percentage) .. "%")
-            Lockout.interruptMark:SetPoint("LEFT", Lockout.customCastBar, "LEFT", Lockout.customCastBar:GetWidth() * (interruptedAt / castTime), 0)
-            Lockout.interruptMark:Show()
+            local interruptMark = Lockout.interruptMarks[interruptID]
+            if debugStatements then
+                print("Interrupt ID found when interrupted:", interruptID)
+            end
+            if interruptID then
+                if not interruptMark then
+                    -- Create a new interruptMark if it doesn't exist
+                    if table.getn(Lockout.interruptMarks) < 3 then
+                        interruptMark = CreateInterruptIcon(interruptID, Lockout, interruptedAt, castTime, interruptSpellIdToClassColor[interruptID])
+                        if debugStatements then
+                            print("Created Interrupt Icon")
+                        end
+                        Lockout.interruptMarks[interruptID] = interruptMark
+                    end
+                else
+                    -- Update the position of the existing interrupt mark
+                    interruptMark:SetPoint("LEFT", Lockout.customCastBar, "LEFT", Lockout.customCastBar:GetWidth() * (interruptedAt / castTime), 0)
+                    if debugStatements then
+                        print("Updated Interrupt Icon Position")
+                    end
+
+                    -- Update the cooldown sweep
+                    local duration = interruptCoolDowns[interruptID]
+                    local start = 0
+                    if duration and duration > 0 then
+                        start = GetTime()
+                        interruptMark.cooldown:SetCooldown(start, duration)
+                    end
+                
+                    -- Cancel the existing ticker if it exists
+                    if interruptMark.ticker then
+                        interruptMark.ticker:Cancel()
+                    end
+                
+                    -- Restart the ticker
+                    interruptMark.ticker = C_Timer.NewTicker(1, function()
+                        local remaining = max(0, start + duration - GetTime())
+                        if debugStatements then
+                            print("Remaining cooldown for", interruptMark.spellName, ":", remaining)
+                        end
+                        if remaining <= 0 then
+                            interruptMark.ticker:Cancel()
+                        end
+                    end)
+                end
+            end
         end
         spellInterruptedTime = nil
         combatLogEventTime = nil
         interruptedUnit = nil
         interruptedStartTime = nil
         interruptedEndTime = nil
+        interruptID = nil
     end
 end)
 
@@ -281,3 +565,4 @@ end
 function Lockout: ImportProfile()
 
 end
+
