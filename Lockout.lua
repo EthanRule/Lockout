@@ -108,9 +108,9 @@ local interruptSpellIdToClassColor = {
     [96231] = RAID_CLASS_COLORS["PALADIN"],
     [106839] = RAID_CLASS_COLORS["DRUID"],
     [78675] = RAID_CLASS_COLORS["DRUID"],
-    [106839] = RAID_CLASS_COLORS["DRUID"],
     [6552] = RAID_CLASS_COLORS["WARRIOR"],
     [119910] = RAID_CLASS_COLORS["WARLOCK"],
+    [19647] = RAID_CLASS_COLORS["WARLOCK"],
     [212619] = RAID_CLASS_COLORS["WARLOCK"],
     [57994] = RAID_CLASS_COLORS["SHAMAN"],
     [147362] = RAID_CLASS_COLORS["HUNTER"],
@@ -129,6 +129,7 @@ local interruptCoolDowns = {
     [106839] = 15,
     [6552] = 14,
     [119910] = 24,
+    [19647] = 24,
     [212619] = 60,
     [57994] = 12,
     [147362] = 24,
@@ -161,6 +162,33 @@ if texture then
 else
     if debugStatements then
         print("Texture not found")
+    end
+end
+
+function Lockout:UpdateCastBarColor()
+    local isEmpty = true
+    local allOnCooldown = true
+
+    -- Check if the interruptMarks table is empty
+    for _ in pairs(self.interruptMarks) do
+        isEmpty = false
+        break
+    end
+
+    -- Check if all interrupts are on cooldown
+    for _, interruptMark in pairs(self.interruptMarks) do
+        local remaining = max(0, interruptMark.start + interruptMark.duration - GetTime())
+        if remaining <= 0 then
+            allOnCooldown = false
+            break
+        end
+    end
+
+    -- Change the color of the cast bar based on the state of the interrupt table
+    if isEmpty or allOnCooldown then
+        self.customCastBar:SetStatusBarColor(1, 1, 0)  -- Set the color to yellow
+    else
+        self.customCastBar:SetStatusBarColor(0.8, 0.5, 1)  -- Set the color to purple
     end
 end
 
@@ -378,6 +406,7 @@ function CreateInterruptIcon(interruptID, Lockout, interruptedAt, castTime, colo
         if color then
             -- Set the color of the interrupt mark
             interruptMark:SetBackdropColor(color.r, color.g, color.b)
+            --UpdateCastBarColor(Lockout)
         end
 
         -- Show the interrupt mark
@@ -470,9 +499,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             local interruptedAt = spellInterruptedTime - interruptedStartTime
             local percentage = (interruptedAt / castTime) * 100
             local interruptMark = Lockout.interruptMarks[interruptID]
-            if debugStatements then
-                print("Interrupt ID found when interrupted:", interruptID)
-            end
+            print("Interrupt ID found when interrupted:", interruptID)
             if interruptID then
                 if not interruptMark then
                     -- Create a new interruptMark if it doesn't exist
