@@ -4,7 +4,7 @@ local ACD = LibStub("AceConfigDialog-3.0")
 local ACR = LibStub("AceConfigRegistry-3.0")
 local AceGUI = LibStub("AceGUI-3.0")
 local LSM = LibStub("LibSharedMedia-3.0")
-local debugStatements = false
+local debugStatements = true
 
 -- UI and database
 local defaults = {
@@ -103,41 +103,45 @@ local options = {
 
 -- Mapping of interrupt spell IDs to class colors
 local interruptSpellIdToClassColor = {
-    [47528] = RAID_CLASS_COLORS["DEATHKNIGHT"],
-    [183752] = RAID_CLASS_COLORS["DEMONHUNTER"],
-    [96231] = RAID_CLASS_COLORS["PALADIN"],
-    [106839] = RAID_CLASS_COLORS["DRUID"],
-    [78675] = RAID_CLASS_COLORS["DRUID"],
-    [6552] = RAID_CLASS_COLORS["WARRIOR"],
-    [119910] = RAID_CLASS_COLORS["WARLOCK"],
-    [19647] = RAID_CLASS_COLORS["WARLOCK"],
-    [212619] = RAID_CLASS_COLORS["WARLOCK"],
-    [57994] = RAID_CLASS_COLORS["SHAMAN"],
-    [147362] = RAID_CLASS_COLORS["HUNTER"],
-    [187707] = RAID_CLASS_COLORS["HUNTER"],
-    [2139] = RAID_CLASS_COLORS["MAGE"],
-    [1766] = RAID_CLASS_COLORS["ROGUE"],
-    [116705] = RAID_CLASS_COLORS["MONK"],
-    [351338] = RAID_CLASS_COLORS["EVOKER"],
+    [47528] = RAID_CLASS_COLORS["DEATHKNIGHT"],   -- Mind Freeze
+    [183752] = RAID_CLASS_COLORS["DEMONHUNTER"],  -- Disrupt
+    [96231] = RAID_CLASS_COLORS["PALADIN"],       -- Rebuke
+    [97547] = RAID_CLASS_COLORS["DRUID"],         -- Solar Beam        
+    [106839] = RAID_CLASS_COLORS["DRUID"],        -- Skull Bash         
+    [93985] = RAID_CLASS_COLORS["DRUID"],         -- Skull Bash (bear form)
+    [6552] = RAID_CLASS_COLORS["WARRIOR"],        -- Pummel
+    [132409] = RAID_CLASS_COLORS["WARLOCK"],      -- Spell Lock
+    [19647] = RAID_CLASS_COLORS["WARLOCK"],       -- Spell Lock (felhunter)
+    [212619] = RAID_CLASS_COLORS["WARLOCK"],      -- Call Felhunter         TODO: FIX, (Not working Showing red dash for class color)
+    [89766] = RAID_CLASS_COLORS["WARLOCK"],       -- Axe Toss
+    [57994] = RAID_CLASS_COLORS["SHAMAN"],        -- Wind Shear
+    [147362] = RAID_CLASS_COLORS["HUNTER"],       -- Counter Shot
+    [187707] = RAID_CLASS_COLORS["HUNTER"],       -- Muzzle
+    [2139] = RAID_CLASS_COLORS["MAGE"],           -- Counterspell
+    [1766] = RAID_CLASS_COLORS["ROGUE"],          -- Kick
+    [116705] = RAID_CLASS_COLORS["MONK"],         -- Spear Hand Strike
+    [351338] = RAID_CLASS_COLORS["EVOKER"],       -- Quell
 }
 
 local interruptCoolDowns = {
-    [47528] = 15,
-    [183752] = 15,
-    [96231] = 15,
-    [78675] = 60,
-    [106839] = 15,
-    [6552] = 14,
-    [119910] = 24,
-    [19647] = 24,
-    [212619] = 60,
-    [57994] = 12,
-    [147362] = 24,
-    [187707] = 15,
-    [2139] = 20,
-    [1766] = 15,
-    [116705] = 15,
-    [351338] = 20,
+    [47528] = 15,   -- Mind Freeze
+    [183752] = 15,  -- Disrupt
+    [96231] = 15,   -- Rebuke
+    [97547] = 45,   -- Solar Beam              
+    [106839] = 15,  -- Skull Bash             
+    [93985] = 15,   -- Skull Bash (bear form)
+    [6552] = 14,    -- Pummel
+    [132409] = 24,  -- Spell Lock
+    [19647] = 24,   -- Spell Lock (felhunter)
+    [212619] = 60,  -- Call Felhunter           TODO: FIX, (Not working Showing red dash for class color)
+    [89766] = 30,   -- Axe Toss
+    [57994] = 12,   -- Wind Shear
+    [147362] = 24,  -- Counter Shot
+    [187707] = 15,  -- Muzzle
+    [2139] = 20,    -- Counterspell
+    [1766] = 15,    -- Kick
+    [116705] = 15,  -- Spear Hand Strike
+    [351338] = 20,  -- Quell
 }
 
 Lockout.interruptMarks = Lockout.interruptMarks or {}
