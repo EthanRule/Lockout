@@ -4,7 +4,7 @@ local ACD = LibStub("AceConfigDialog-3.0")
 local ACR = LibStub("AceConfigRegistry-3.0")
 local AceGUI = LibStub("AceGUI-3.0")
 local LSM = LibStub("LibSharedMedia-3.0")
-local debugStatements = true
+local debugStatements = false
 
 -- UI and database
 local defaults = {
@@ -113,7 +113,7 @@ local interruptSpellIdToClassColor = {
     [132409] = RAID_CLASS_COLORS["WARLOCK"],      -- Spell Lock
     [19647] = RAID_CLASS_COLORS["WARLOCK"],       -- Spell Lock (felhunter)
     [212619] = RAID_CLASS_COLORS["WARLOCK"],      -- Call Felhunter         TODO: FIX, (Not working Showing red dash for class color)
-    [89766] = RAID_CLASS_COLORS["WARLOCK"],       -- Axe Toss
+    [347008] = RAID_CLASS_COLORS["WARLOCK"],       -- Axe Toss
     [57994] = RAID_CLASS_COLORS["SHAMAN"],        -- Wind Shear
     [147362] = RAID_CLASS_COLORS["HUNTER"],       -- Counter Shot
     [187707] = RAID_CLASS_COLORS["HUNTER"],       -- Muzzle
@@ -134,7 +134,7 @@ local interruptCoolDowns = {
     [132409] = 24,  -- Spell Lock
     [19647] = 24,   -- Spell Lock (felhunter)
     [212619] = 60,  -- Call Felhunter           TODO: FIX, (Not working Showing red dash for class color)
-    [89766] = 30,   -- Axe Toss
+    [347008] = 30,   -- Axe Toss
     [57994] = 12,   -- Wind Shear
     [147362] = 24,  -- Counter Shot
     [187707] = 15,  -- Muzzle
