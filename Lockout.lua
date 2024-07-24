@@ -4,7 +4,7 @@ local ACD = LibStub("AceConfigDialog-3.0")
 local ACR = LibStub("AceConfigRegistry-3.0")
 local AceGUI = LibStub("AceGUI-3.0")
 local LSM = LibStub("LibSharedMedia-3.0")
-local debugStatements = false
+local debugStatements = true
 
 -- UI and database
 local defaults = {
@@ -197,7 +197,7 @@ function Lockout:UpdateCastBarColor()
 end
 
 function Lockout:SlashCommand()
-    InterfaceOptionsFrame_OpenToCategory(self.optionsFrame)
+    --InterfaceOptionsFrame_OpenToCategory(self.optionsFrame) (broken needs fix for slash commands)
 end
 
 -- Setters & Getters
@@ -238,6 +238,8 @@ function Lockout:GetCastBarY(info)
 end
 
 function Lockout:GetCastBarWidth(info)
+    print("getting cast bar width:")
+    print(tostring(self.db.profile.castBarWidth))
     return tostring(self.db.profile.castBarWidth)
 end
 
@@ -309,7 +311,14 @@ function Lockout:OnInitialize()
     end
 
     -- Set the point of the cast bar using the X and Y coordinates from the profile
+    print("Setting X and Y coordinates")
+    print("x:", self.db.profile.castBarX, "y:", self.db.profile.castBarY)
     self.customCastBar:SetPoint("CENTER", self.db.profile.castBarX, self.db.profile.castBarY)
+
+    -- Set the size of the cast bar using the width and height from the profile
+    print("Setting width and height")
+    print("width:", self.db.profile.castBarWidth, "height:", self.db.profile.castBarHeight)
+    self.customCastBar:SetSize(self.db.profile.castBarWidth, self.db.profile.castBarHeight)
 end
 
 -- Create interrupt Mark
