@@ -1,9 +1,16 @@
+-- Ace Libraries
 local Lockout = LibStub("AceAddon-3.0"):NewAddon("Lockout", "AceConsole-3.0", "AceEvent-3.0", "AceSerializer-3.0")
 local AC = LibStub("AceConfig-3.0")
 local ACD = LibStub("AceConfigDialog-3.0")
 local ACR = LibStub("AceConfigRegistry-3.0")
 local AceGUI = LibStub("AceGUI-3.0")
 local LSM = LibStub("LibSharedMedia-3.0")
+
+-- New 11.0.0 Libraries
+local GetSpellInfo = C_Spell and C_Spell.GetSpellInfo or GetSpellInfo
+local GetSpellTexture = C_Spell and C_Spell.GetSpellTexture or GetSpellTexture
+
+-- Debug Print Statements
 local debugStatements = false
 
 -- UI and database
@@ -77,50 +84,29 @@ local options = {
             get = "GetCastBarHeight",
             order = 6,
         },
-        -- reset = {
-        --     name = "Reset to Defaults",
-        --     desc = "Reset the settings to their default values",
-        --     type = "execute",
-        --     func = "ResetToDefaults",
-        --     order = 7,
-        -- },
-        -- import = {
-        --     name = "Import",
-        --     desc = "Import a profile",
-        --     type = "execute",
-        --     func = "ImportProfile",
-        --     order = 7,
-        -- },
-        -- export = {
-        --     name = "Export",
-        --     desc = "Export a profile",
-        --     type = "execute",
-        --     func = "ExportProfile",
-        --     order = 8,
-        -- }
     },
 }
 
--- Mapping of interrupt spell IDs to class colors
+-- Mapping of interrupt spell IDs to class colors. Y means it has been tested to work in 11.0.0
 local interruptSpellIdToClassColor = {
-    [47528] = RAID_CLASS_COLORS["DEATHKNIGHT"],   -- Mind Freeze
-    [183752] = RAID_CLASS_COLORS["DEMONHUNTER"],  -- Disrupt
-    [96231] = RAID_CLASS_COLORS["PALADIN"],       -- Rebuke
-    [97547] = RAID_CLASS_COLORS["DRUID"],         -- Solar Beam        
-    [106839] = RAID_CLASS_COLORS["DRUID"],        -- Skull Bash         
-    [93985] = RAID_CLASS_COLORS["DRUID"],         -- Skull Bash (bear form)
-    [6552] = RAID_CLASS_COLORS["WARRIOR"],        -- Pummel
-    [132409] = RAID_CLASS_COLORS["WARLOCK"],      -- Spell Lock
-    [19647] = RAID_CLASS_COLORS["WARLOCK"],       -- Spell Lock (felhunter)
-    [212619] = RAID_CLASS_COLORS["WARLOCK"],      -- Call Felhunter         TODO: FIX, (Not working Showing red dash for class color)
-    [347008] = RAID_CLASS_COLORS["WARLOCK"],       -- Axe Toss
-    [57994] = RAID_CLASS_COLORS["SHAMAN"],        -- Wind Shear
-    [147362] = RAID_CLASS_COLORS["HUNTER"],       -- Counter Shot
-    [187707] = RAID_CLASS_COLORS["HUNTER"],       -- Muzzle
-    [2139] = RAID_CLASS_COLORS["MAGE"],           -- Counterspell
-    [1766] = RAID_CLASS_COLORS["ROGUE"],          -- Kick
-    [116705] = RAID_CLASS_COLORS["MONK"],         -- Spear Hand Strike
-    [351338] = RAID_CLASS_COLORS["EVOKER"],       -- Quell
+    [47528] = RAID_CLASS_COLORS["DEATHKNIGHT"],   -- Y Mind Freeze
+    [183752] = RAID_CLASS_COLORS["DEMONHUNTER"],  -- Y Disrupt
+    [96231] = RAID_CLASS_COLORS["PALADIN"],       -- Y Rebuke
+    [97547] = RAID_CLASS_COLORS["DRUID"],         -- Y Solar Beam        
+    [106839] = RAID_CLASS_COLORS["DRUID"],        -- Y Skull Bash         
+    [93985] = RAID_CLASS_COLORS["DRUID"],         -- Y Skull Bash (bear form)
+    [6552] = RAID_CLASS_COLORS["WARRIOR"],        -- Y Pummel
+    [132409] = RAID_CLASS_COLORS["WARLOCK"],      -- Y Spell Lock 
+    [19647] = RAID_CLASS_COLORS["WARLOCK"],       -- Y Spell Lock (felhunter)
+    [212619] = RAID_CLASS_COLORS["WARLOCK"],      -- ? Call Felhunter | Either people don't play this or it has been removed
+    [347008] = RAID_CLASS_COLORS["WARLOCK"],      -- Y Axe Toss
+    [57994] = RAID_CLASS_COLORS["SHAMAN"],        -- Y Wind Shear
+    [147362] = RAID_CLASS_COLORS["HUNTER"],       -- Y Counter Shot
+    [187707] = RAID_CLASS_COLORS["HUNTER"],       -- Y Muzzle
+    [2139] = RAID_CLASS_COLORS["MAGE"],           -- Y Counterspell
+    [1766] = RAID_CLASS_COLORS["ROGUE"],          -- Y Kick
+    [116705] = RAID_CLASS_COLORS["MONK"],         -- Y Spear Hand Strike
+    [351338] = RAID_CLASS_COLORS["EVOKER"],       -- Y Quell
 }
 
 local interruptCoolDowns = {
@@ -238,8 +224,6 @@ function Lockout:GetCastBarY(info)
 end
 
 function Lockout:GetCastBarWidth(info)
-    print("getting cast bar width:")
-    print(tostring(self.db.profile.castBarWidth))
     return tostring(self.db.profile.castBarWidth)
 end
 
@@ -311,13 +295,9 @@ function Lockout:OnInitialize()
     end
 
     -- Set the point of the cast bar using the X and Y coordinates from the profile
-    print("Setting X and Y coordinates")
-    print("x:", self.db.profile.castBarX, "y:", self.db.profile.castBarY)
     self.customCastBar:SetPoint("CENTER", self.db.profile.castBarX, self.db.profile.castBarY)
 
     -- Set the size of the cast bar using the width and height from the profile
-    print("Setting width and height")
-    print("width:", self.db.profile.castBarWidth, "height:", self.db.profile.castBarHeight)
     self.customCastBar:SetSize(self.db.profile.castBarWidth, self.db.profile.castBarHeight)
 end
 
@@ -332,26 +312,41 @@ function CreateInterruptMark(interruptID)
     interruptMark:SetBackdropColor(1, 0, 0)
     interruptMark:SetAlpha(1.0)
 
+    local iconTexture
+    local cooldown
+
     -- Add the icon texture
-    local spellIconPath = GetSpellTexture(interruptID)
-    if debugStatements then
-        print("interruptID:", interruptID)
-        print("spellIconPath:", spellIconPath)
+    if interruptID then
+        local spellIconPath = GetSpellTexture(interruptID)
+        if spellIconPath then
+            if debugStatements then
+                print("interruptID:", interruptID)
+                print("spellIconPath:", spellIconPath)
+            end
+            iconTexture = interruptMark:CreateTexture(nil, "BACKGROUND")
+            iconTexture:SetSize(20, 20)
+            iconTexture:SetPoint("CENTER", interruptMark, 0, 20)
+            iconTexture:SetTexture(spellIconPath)
+            iconTexture:SetAlpha(1.0)
+
+            -- Create a cooldown frame
+            cooldown = CreateFrame("Cooldown", nil, interruptMark, "CooldownFrameTemplate")
+            cooldown:SetAllPoints(iconTexture)  -- Make the cooldown frame cover the entire icon texture
+            cooldown:SetDrawEdge(false)  -- Don't draw the edge of the cooldown frame
+            cooldown:SetSwipeColor(0, 0, 0, 0.8)  -- Set the color of the cooldown swipe
+            cooldown:SetHideCountdownNumbers(true)  -- Hide the countdown numbers
+
+            interruptMark.cooldown = cooldown
+        else
+            if debugStatements then
+                print("Error: GetSpellTexture returned nil for interruptID:", interruptID)
+            end
+        end
+    else
+        if debugStatements then
+            print("Error: interruptID is nil")
+        end
     end
-    local iconTexture = interruptMark:CreateTexture(nil, "BACKGROUND")  -- Change the draw layer to "BACKGROUND"
-    iconTexture:SetSize(20, 20)  -- Set the size of the texture to 20x20
-    iconTexture:SetPoint("CENTER", interruptMark, 0, 20)  -- Position the texture at the center of the interruptMark frame and move it up by 10px
-    iconTexture:SetTexture(spellIconPath)
-    iconTexture:SetAlpha(1.0)  -- Set the alpha of the texture to 1.0
-
-    -- Create a cooldown frame
-    local cooldown = CreateFrame("Cooldown", nil, interruptMark, "CooldownFrameTemplate")
-    cooldown:SetAllPoints(iconTexture)  -- Make the cooldown frame cover the entire icon texture
-    cooldown:SetDrawEdge(false)  -- Don't draw the edge of the cooldown frame
-    cooldown:SetSwipeColor(0, 0, 0, 0.8)  -- Set the color of the cooldown swipe
-    cooldown:SetHideCountdownNumbers(true)  -- Hide the countdown numbers
-
-    interruptMark.cooldown = cooldown
 
     -- Get the cooldown of the spell from the interruptCoolDowns table
     local duration = interruptCoolDowns[interruptID]
@@ -359,7 +354,7 @@ function CreateInterruptMark(interruptID)
         print("Duration:", duration)
     end
     local start = 0  -- Initialize start to 0
-    if duration and duration > 0 then
+    if duration and duration > 0 and cooldown then
         -- Start the cooldown sweep
         start = GetTime()
         cooldown:SetCooldown(start, duration)
@@ -382,6 +377,8 @@ function CreateInterruptMark(interruptID)
             ticker:Cancel()  -- Stop the ticker when the remaining cooldown is 0
         end
     end)
+
+    interruptMark.ticker = ticker
 
     interruptMark:Show()
     interruptMark:Raise()
@@ -512,10 +509,12 @@ frame:SetScript("OnEvent", function(self, event, ...)
             local interruptedAt = spellInterruptedTime - interruptedStartTime
             local percentage = (interruptedAt / castTime) * 100
             local interruptMark = Lockout.interruptMarks[interruptID]
-            print("Interrupt ID found when interrupted:", interruptID)
             if interruptID then
                 if not interruptMark then
                     -- Create a new interruptMark if it doesn't exist
+                    if debugStatements then
+                        print("Interrupt mark does not exist, creating new one")
+                    end
                     if table.getn(Lockout.interruptMarks) < 3 then
                         interruptMark = CreateInterruptIcon(interruptID, Lockout, interruptedAt, castTime, interruptSpellIdToClassColor[interruptID])
                         if debugStatements then
